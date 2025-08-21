@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "module": "es2022",
+    "moduleResolution": "node16",
+    "esModuleInterop": true,
+    "strict": true,
+    "allowImportingTsExtensions": true
+  }
+}

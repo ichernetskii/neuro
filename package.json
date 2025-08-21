@@ -1,0 +1,26 @@
+{
+  "name": "neuro",
+  "version": "1.0.0",
+  "description": "Neuro",
+  "keywords": [
+    "neuro"
+  ],
+  "license": "MIT",
+  "author": "Ilia Chernetskii <ichernetskii@gmail.com>",
+  "type": "module",
+  "scripts": {
+    "test": "jest",
+    "prettier": "prettier --check .",
+    "prettier:fix": "prettier --write ."
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.3.0",
+    "jest": "^30.0.5",
+    "jest-util": "^30.0.5",
+    "prettier": "^3.6.2",
+    "ts-jest": "^29.4.1",
+    "typescript": "^5.9.2"
+  },
+  "packageManager": "yarn@4.9.2"
+}
