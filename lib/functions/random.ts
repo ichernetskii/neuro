@@ -30,3 +30,7 @@ export function randomUniformXavier(fanIn: number, fanOut: number): number {
 	const limit = Math.sqrt(6 / (fanIn + fanOut));
 	return randomUniform(-limit, limit);
 }
+
+export function randomInt(min: number, max: number): number {
+	return Math.floor(Math.random() * (max - min + 1)) + min;
+}

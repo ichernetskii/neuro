@@ -11,16 +11,21 @@
   "scripts": {
     "test": "jest",
     "prettier": "prettier --check .",
-    "prettier:fix": "prettier --write ."
+    "prettier:fix": "prettier --write .",
+    "example": "node ./example/index.ts"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^24.3.0",
+    "@types/pngjs": "^6.0.5",
     "jest": "^30.0.5",
     "jest-util": "^30.0.5",
     "prettier": "^3.6.2",
     "ts-jest": "^29.4.1",
     "typescript": "^5.9.2"
   },
-  "packageManager": "yarn@4.9.2"
+  "packageManager": "yarn@4.9.2",
+  "dependencies": {
+    "pngjs": "^7.0.0"
+  }
 }

@@ -2,3 +2,4 @@
 **/.yarn
 node_modules
 .pnp.*
+**/.DS_Store

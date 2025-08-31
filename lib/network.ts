@@ -1,5 +1,5 @@
 import { Layer } from "./layer.ts";
-import { ActivationFunction, ReLU, Sigmoid } from "./functions/activation.ts";
+import { type ActivationFunction, ReLU, Sigmoid } from "./functions/activation.ts";
 import { Signal } from "./neuron.ts";
 import { randomNormalHe, randomUniform, randomUniformXavier } from "./functions/random.ts";
 
@@ -68,6 +68,10 @@ export class Network {
 		return this;
 	}
 
+	getOutputSignals(): Readonly<Signal>[] {
+		return this.layers[this.layers.length - 1].neurons.map(neuron => neuron.output);
+	}
+
 	forward() {
 		this.layers.forEach(layer => layer.forward());
 		return this;
@@ -125,5 +129,43 @@ export class Network {
 		});
 
 		return this;
+	}
+
+	toJSON() {
+		return {
+			layers: this.layers.map(layer => ({
+				neurons: layer.neurons.map(neuron => ({
+					bias: neuron.bias,
+					inputs: neuron.inputs.map(input => ({
+						weight: input.weight,
+					})),
+				})),
+			})),
+			activationFunction: this.activationFunction === ReLU ? "ReLU" : "Sigmoid",
+		};
+	}
+
+	static fromJSON(json: any) {
+		if (!json.layers || !Array.isArray(json.layers)) {
+			throw new Error("Invalid JSON format: 'layers' field is missing or not an array.");
+		}
+		const activationFunction = json.activationFunction === "Sigmoid" ? Sigmoid : ReLU;
+		const neuronsNumberPerLayer = json.layers.map((layer: any) => layer.neurons.length);
+		const network = new Network(neuronsNumberPerLayer, activationFunction);
+
+		// Load weights and biases
+		json.layers.forEach((layer: any, layerIndex: number) => {
+			layer.neurons.forEach((neuron: any, neuronIndex: number) => {
+				const targetNeuron = network.layers[layerIndex].neurons[neuronIndex];
+				targetNeuron.bias = neuron.bias;
+				neuron.inputs.forEach((input: any, inputIndex: number) => {
+					if (targetNeuron.inputs[inputIndex]) {
+						targetNeuron.inputs[inputIndex].weight = input.weight;
+					}
+				});
+			});
+		});
+
+		return network;
 	}
 }

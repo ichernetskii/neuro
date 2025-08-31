@@ -1,4 +1,4 @@
-import { ActivationFunction, ReLU } from "./functions/activation.ts";
+import { type ActivationFunction, ReLU } from "./functions/activation.ts";
 
 export class Signal {
 	value?: number;

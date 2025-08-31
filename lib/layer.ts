@@ -1,4 +1,4 @@
-import { ActivationFunction, ReLU } from "./functions/activation.ts";
+import { type ActivationFunction, ReLU } from "./functions/activation.ts";
 import { Neuron, Input } from "./neuron.ts";
 
 export class Layer {
