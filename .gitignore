@@ -1,5 +1,5 @@
 **/.idea
 **/.yarn
-node_modules
-.pnp.*
+**/node_modules
+**/.pnp.*
 **/.DS_Store

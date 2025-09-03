@@ -1,5 +1,5 @@
-import { Network } from "../network.ts";
 import { LeakyReLU, ReLU, Sigmoid } from "../functions/activation.ts";
+import { Network } from "../network.ts";
 
 describe("Network", () => {
 	it("Initialization", () => {

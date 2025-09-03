@@ -4,9 +4,9 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs";
 import { PNG } from "pngjs";
-import { Network } from "../lib/network.ts";
 import { getDirectories, getFiles } from "./utils.ts";
-import { randomInt } from "../lib/functions/random.ts";
+import { randomInt } from "neuro-lib/src/functions/random.ts";
+import { Network } from "neuro-lib/src/network.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
