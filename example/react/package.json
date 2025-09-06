@@ -9,6 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "classnames": "^2.5.1",
+    "mobx": "^6.13.7",
+    "mobx-react": "^9.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

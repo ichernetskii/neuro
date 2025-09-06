@@ -79,7 +79,7 @@ export function showHelp() {
 	console.log(`
 == Image recognizer application ==
 
-Usage: node index.js [options] [name]
+Usage: node index.ts [options] [name]
 
 Options:
   -m, --mode <mode>         Set mode: "train" or "recognize" (default: "recognize")
@@ -90,9 +90,9 @@ Options:
   -h, --help                Show this help message
 
 Examples:
-  node index.js -m train -F ./images -o model.json
-  node index.js -m recognize -f image.png -i model.json
-  node index.js -h
+  node index.ts -m train -F ./images -o model.json
+  node index.ts -m recognize -f image.png -i model.json
+  node index.ts -h
     `);
 }
 
@@ -142,8 +142,8 @@ async function train(options: Options) {
 	console.log(`🔀 Shuffled the training data.`);
 
 	// train the network
-	const epochs = 10;
-	const learningRate = 0.001;
+	const epochs = 100;
+	const learningRate = 0.005;
 	for (let epoch = 0; epoch < epochs; epoch++) {
 		console.log(`🚀 Starting epoch ${epoch + 1}/${epochs}`);
 		for (let i = 0; i < trainingPathSet.length; i++) {
