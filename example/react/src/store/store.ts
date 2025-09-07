@@ -16,6 +16,6 @@ export class Store {
 	}
 
 	get flatPixels() {
-		return this._pixels.map(pixelRow => pixelRow.map(pixel => (pixel.isSelected ? 255 : 0))).flat();
+		return this._pixels.map(pixelRow => pixelRow.map(pixel => (pixel.isSelected ? 1 : 0))).flat();
 	}
 }

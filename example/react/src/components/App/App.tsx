@@ -2,8 +2,12 @@ import { useStore } from "../../store/Context.tsx";
 import { Pixel } from "../Pixel/Pixel.tsx";
 import styles from "./App.module.scss";
 import { observer } from "mobx-react";
-import { type FC, useEffect, useState, useTransition } from "react";
+import { type FC, type MouseEventHandler, useEffect, useState, useTransition } from "react";
 import { Network } from "../../../../../lib/src/network.ts";
+import { throttle } from "../../utils/throttle.ts";
+import { IMAGE_HEIGHT, IMAGE_WIDTH } from "../../index.tsx";
+
+const PIXEL_SIZE = 20;
 
 export const App = observer<FC>(() => {
 	const { pixels, flatPixels } = useStore();
@@ -33,8 +37,29 @@ export const App = observer<FC>(() => {
 		return <div>Loading ...</div>;
 	}
 
+	const mouseHandler = throttle<MouseEventHandler>(e => {
+		e.preventDefault();
+		const { x, y } = e.currentTarget.getBoundingClientRect();
+		const column = Math.floor((e.clientX - x) / PIXEL_SIZE);
+		const row = Math.floor((e.clientY - y) / PIXEL_SIZE);
+		if (column < IMAGE_WIDTH && row < IMAGE_HEIGHT) {
+			if (e.buttons === 1) {
+				pixels[row][column].setSelected(true);
+				pixels[row + 1][column].setSelected(true);
+				pixels[row][column + 1].setSelected(true);
+				pixels[row + 1][column + 1].setSelected(true);
+			}
+			if (e.buttons === 2) {
+				pixels[row][column].setSelected(false);
+				pixels[row + 1][column].setSelected(false);
+				pixels[row][column + 1].setSelected(false);
+				pixels[row + 1][column + 1].setSelected(false);
+			}
+		}
+	}, 50);
+
 	return (
-		<div>
+		<div onMouseDown={mouseHandler} onMouseMove={mouseHandler} onContextMenu={e => e.preventDefault()}>
 			{pixels.map((pixelRow, row) => {
 				return (
 					<div key={row} className={styles.row}>
@@ -42,7 +67,7 @@ export const App = observer<FC>(() => {
 							<Pixel
 								key={`${column}:${row}`}
 								isSelected={pixel.isSelected}
-								setSelected={pixel.setSelected}
+								// setSelected={pixel.setSelected}
 							/>
 						))}
 					</div>

@@ -96,9 +96,16 @@ Examples:
     `);
 }
 
+function saveModel(network: Network, fileName: string) {
+	// save the model to options.output JSON file
+	const modelJson = JSON.stringify(network.toJSON(), null, 2);
+	fs.writeFileSync(fileName, modelJson);
+	console.log(`💾 Model saved to ${fileName}`);
+}
+
 async function train(options: Options) {
 	console.log("🛠️ Training mode selected");
-	const network = new Network([28 * 28, 128, 64, 10]);
+	const network = new Network([28 * 28, 512, 256, 96, 10]);
 
 	// prepare training data from options.folder
 	const trainingPathSet: [result: number, imageData: number[][]][] = [];
@@ -142,10 +149,10 @@ async function train(options: Options) {
 	console.log(`🔀 Shuffled the training data.`);
 
 	// train the network
-	const epochs = 100;
-	const learningRate = 0.005;
+	const epochs = 220;
+	const learningRate = 0.002;
 	for (let epoch = 0; epoch < epochs; epoch++) {
-		console.log(`🚀 Starting epoch ${epoch + 1}/${epochs}`);
+		console.log(`🚀 Starting epoch ${epoch + 1}/${epochs} at ${new Date().toLocaleString()}`);
 		for (let i = 0; i < trainingPathSet.length; i++) {
 			const [result, imageData] = trainingPathSet[i];
 			const input = imageData.flat();
@@ -158,14 +165,8 @@ async function train(options: Options) {
 				console.log(`   Processed ${i + 1}/${trainingPathSet.length} images`);
 			}
 		}
+		saveModel(network, options.output);
 	}
-
-	// save the model to options.output JSON file
-	const modelJson = JSON.stringify(network.toJSON(), null, 2);
-	fs.writeFileSync(options.output, modelJson);
-	console.log(`💾 Model saved to ${options.output}`);
-
-	// save the model to options.output JSON file
 
 	console.log("✅ Training completed");
 }
