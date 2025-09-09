@@ -7,28 +7,30 @@ import { PNG } from "pngjs";
 import { getDirectories, getFiles } from "./utils.ts";
 import { randomInt } from "neuro-lib/src/functions/random.ts";
 import { Network } from "neuro-lib/src/network.ts";
+import { ReLU } from "neuro-lib/src/functions/activation.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 interface Options {
 	mode: "train" | "recognize";
-	file: string;
-	folder: string;
-	input: string;
-	output: string;
 	help: boolean;
+	file?: string;
+	folder?: string;
+	input?: string;
+	output?: string;
+	layers?: string;
+	epochs?: number;
+	rate?: number;
 }
 
 export function parseArguments() {
 	const args = process.argv.slice(2);
 	const options: Options = {
 		mode: "recognize",
-		file: "",
-		folder: "",
-		input: "",
-		output: "",
 		help: false,
+		epochs: 100,
+		rate: 0.001,
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -43,6 +45,10 @@ export function parseArguments() {
 				} else {
 					throw new Error(`Invalid mode: ${mode}. Use "train" or "recognize".`);
 				}
+				break;
+			case "-h":
+			case "--help":
+				options.help = true;
 				break;
 			case "-f":
 			case "--file":
@@ -60,9 +66,23 @@ export function parseArguments() {
 			case "--output":
 				options.output = args[++i] || "";
 				break;
-			case "-h":
-			case "--help":
-				options.help = true;
+			case "-l":
+			case "--layers":
+				options.layers = args[++i] || "";
+				break;
+			case "-e":
+			case "--epochs":
+				options.epochs = parseInt(args[++i] || "100", 10);
+				if (isNaN(options.epochs) || options.epochs <= 0) {
+					throw new Error(`Invalid number of epochs: ${args[i]}. Please provide a positive integer.`);
+				}
+				break;
+			case "-r":
+			case "--rate":
+				options.rate = parseFloat(args[++i] || "0.001");
+				if (isNaN(options.rate) || options.rate <= 0) {
+					throw new Error(`Invalid learning rate: ${args[i]}. Please provide a positive number.`);
+				}
 				break;
 			default:
 				if (!arg.startsWith("-")) {
@@ -83,14 +103,23 @@ Usage: node index.ts [options] [name]
 
 Options:
   -m, --mode <mode>         Set mode: "train" or "recognize" (default: "recognize")
-  -f, --file <fileName>     Specify file to recognize
-  -F, --folder <folderName> Specify folder with images to teach the model
-  -i, --input <fileName>    Specify input file to load the model
-  -o, --output <fileName>   Specify output file to save the model
   -h, --help                Show this help message
+  
+  teaching options:
+  -F, --folder <folderName> Specify folder with images to teach the model
+  -i, --input  <fileName>   Specify input file to load the model to continue training (or create a new one with -l)
+  -l, --layers <layers>    	Specify network layers to create a new model (or load existing one with -i)
+  -e, --epochs <number>     Specify number of training epochs (default: 100)
+  -r, --rate   <number>     Specify learning rate (default: 0.001)
+  -o, --output <fileName>   Specify output file to save the model
+  
+  recognition options:
+  -f, --file   <fileName>   Specify file to recognize
+  -i, --input  <fileName>   Specify input file to load the model
 
 Examples:
-  node index.ts -m train -F ./images -o model.json
+  node index.ts -m train -F ./images -i model.json -e 100 -r 0.001 -o model.json
+  node index.ts -m train -F ./images -l 784,512,256,96,10 -e 100 -r 0.001 -o model.json
   node index.ts -m recognize -f image.png -i model.json
   node index.ts -h
     `);
@@ -98,18 +127,54 @@ Examples:
 
 function saveModel(network: Network, fileName: string) {
 	// save the model to options.output JSON file
-	const modelJson = JSON.stringify(network.toJSON(), null, 2);
+	const modelJson = JSON.stringify(network.toJSON(), null, 0);
 	fs.writeFileSync(fileName, modelJson);
 	console.log(`💾 Model saved to ${fileName}`);
 }
 
 async function train(options: Options) {
 	console.log("🛠️ Training mode selected");
-	const network = new Network([28 * 28, 512, 256, 96, 10]);
+
+	// create or load the network
+	let network: Network;
+	if (options.input) {
+		// load existing model to continue training
+		if (!fs.existsSync(options.input)) {
+			throw new Error(`Input file not found: ${options.input}`);
+		}
+		const modelJson = fs.readFileSync(options.input, "utf-8");
+		const modelData = JSON.parse(modelJson);
+		network = Network.fromJSON(modelData);
+		console.log(`💾 Existing model loaded from ${options.input}`);
+	} else {
+		if (!options.layers) {
+			throw new Error("No input model specified. Please provide network layers with -l or --layers.");
+		}
+		console.log("🆕 Creating a new neural network");
+		// create a new network
+		const neuronsNumberPerLayer = options.layers
+			.split(",")
+			.map(neuronsNumber => parseInt(neuronsNumber.trim(), 10));
+		if (neuronsNumberPerLayer.length < 2) {
+			throw new Error("Network must have at least input and output layers.");
+		}
+		if (neuronsNumberPerLayer.some(n => isNaN(n) || n <= 0)) {
+			throw new Error("Invalid layer sizes. Please provide positive integers separated by commas.");
+		}
+		network = new Network(neuronsNumberPerLayer, ReLU);
+		console.log(`🆕 New network created with layers: [${neuronsNumberPerLayer.join(", ")}]`);
+	}
+
+	if (!options.folder) {
+		throw new Error("No folder specified for training data. Use -F or --folder to specify it.");
+	}
+	if (!options.output) {
+		throw new Error("No output file specified to save the model. Use -o or --output to specify it.");
+	}
 
 	// prepare training data from options.folder
-	const trainingPathSet: [result: number, imageData: number[][]][] = [];
 	const folders = await getDirectories(options.folder);
+	const trainingPathSet: [result: number, imageData: number[][]][] = [];
 	for (const folder of folders) {
 		console.log(`📂 Reading images from folder: ${folder}`);
 		const files = await getFiles(`${options.folder}/${folder}`);
@@ -149,8 +214,15 @@ async function train(options: Options) {
 	console.log(`🔀 Shuffled the training data.`);
 
 	// train the network
-	const epochs = 220;
-	const learningRate = 0.002;
+
+	const epochs = options.epochs;
+	if (!epochs || epochs <= 0) {
+		throw new Error("Invalid number of epochs. Please provide a positive integer.");
+	}
+	const learningRate = options.rate;
+	if (!learningRate || learningRate <= 0) {
+		throw new Error("Invalid learning rate. Please provide a positive number.");
+	}
 	for (let epoch = 0; epoch < epochs; epoch++) {
 		console.log(`🚀 Starting epoch ${epoch + 1}/${epochs} at ${new Date().toLocaleString()}`);
 		for (let i = 0; i < trainingPathSet.length; i++) {
@@ -173,6 +245,14 @@ async function train(options: Options) {
 
 async function recognize(options: Options) {
 	console.log("🔍 Recognition mode selected");
+
+	if (!options.input) {
+		throw new Error("No input file specified to load the model. Use -i or --input to specify it.");
+	}
+	if (!options.file) {
+		throw new Error("No file specified to recognize. Use -f or --file to specify it.");
+	}
+
 	// load the model from options.input JSON file
 	if (!fs.existsSync(options.input)) {
 		throw new Error(`Input file not found: ${options.input}`);

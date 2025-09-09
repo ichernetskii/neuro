@@ -4277,6 +4277,7 @@ __metadata:
     globals: "npm:^16.3.0"
     mobx: "npm:^6.13.7"
     mobx-react: "npm:^9.2.0"
+    neuro-lib: "npm:*"
     react: "npm:^19.1.1"
     react-dom: "npm:^19.1.1"
     sass-embedded: "npm:^1.92.0"

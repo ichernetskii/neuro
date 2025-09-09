@@ -1,25 +1,26 @@
 import { type ActivationFunction, ReLU } from "./functions/activation.ts";
 
 export class Signal {
-	value?: number;
+	value: number;
 
-	constructor(value?: number) {
+	constructor(value: number = 0) {
 		this.value = value;
 	}
 }
 
 export class Input {
 	signal: Signal;
-	weight?: number;
+	weight: number;
 
 	constructor(signal: Signal) {
 		this.signal = signal;
+		this.weight = 0;
 	}
 }
 
 export class Neuron {
 	inputs: Input[];
-	bias?: number;
+	bias: number;
 	private _preActivation: number | null = null;
 	get preActivation() {
 		return this._preActivation;
@@ -34,6 +35,7 @@ export class Neuron {
 		this.inputs = [];
 		this._output = new Signal();
 		this.activationFunction = activationFunction;
+		this.bias = 0;
 	}
 
 	addInputs(signals: Signal[]) {
@@ -44,9 +46,9 @@ export class Neuron {
 	forward() {
 		// output = F(bias + Σ(input_i * weight_i))
 		this._preActivation =
-			(this.bias ?? 0) +
+			this.bias +
 			this.inputs.reduce((acc, input) => {
-				return acc + (input.weight ?? 0) * (input.signal.value ?? 0);
+				return acc + input.weight * input.signal.value;
 			}, 0);
 		this._output.value = this.activationFunction(this._preActivation);
 		return this;

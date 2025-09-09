@@ -3,7 +3,7 @@ import { Pixel } from "../Pixel/Pixel.tsx";
 import styles from "./App.module.scss";
 import { observer } from "mobx-react";
 import { type FC, type MouseEventHandler, useEffect, useState, useTransition } from "react";
-import { Network } from "../../../../../lib/src/network.ts";
+import { Network, type NetworkJSON } from "neuro-lib/src/network.ts";
 import { throttle } from "../../utils/throttle.ts";
 import { IMAGE_HEIGHT, IMAGE_WIDTH } from "../../index.tsx";
 
@@ -17,7 +17,7 @@ export const App = observer<FC>(() => {
 
 	useEffect(() => {
 		const importModel = async () => {
-			const model = await import("../../../../dataset/model.json");
+			const model = (await import("../../../../dataset/model.json")) as { default: NetworkJSON };
 			const network = Network.fromJSON(model.default);
 			setNetwork(network);
 		};

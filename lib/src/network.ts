@@ -1,7 +1,18 @@
 import { Layer } from "./layer.ts";
-import { type ActivationFunction, ReLU, Sigmoid } from "./functions/activation.ts";
 import { Signal } from "./neuron.ts";
+import { type ActivationFunction, getActivationFunction, ReLU, Sigmoid } from "./functions/activation.ts";
 import { randomNormalHe, randomUniform, randomUniformXavier } from "./functions/random.ts";
+import { round } from "./functions/round.ts";
+
+export interface NetworkJSON {
+	layers: {
+		neurons: {
+			bias: number;
+			inputs: number[];
+		}[];
+	}[];
+	activationFunction: string;
+}
 
 export class Network {
 	layers: Layer[];
@@ -96,7 +107,7 @@ export class Network {
 		// Calculate deltas for the output layer
 		const outputLayerIndex = this.layers.length - 1;
 		this.layers[outputLayerIndex].neurons.forEach((neuron, neuronIndex) => {
-			const outputValue = neuron.output.value ?? 0;
+			const outputValue = neuron.output.value;
 			const lossFunctionDerivative = outputValue - expectedOutput[neuronIndex];
 			const delta = lossFunctionDerivative * neuron.activationFunction.derivative(neuron.preActivation || 0);
 			deltaMatrix[outputLayerIndex][neuronIndex] = delta;
@@ -109,7 +120,7 @@ export class Network {
 				this.layers[layerIndex + 1].neurons.forEach((nextNeuron, nextNeuronIndex) => {
 					const weight = nextNeuron.inputs[neuronIndex].weight;
 					const nextDelta = deltaMatrix[layerIndex + 1][nextNeuronIndex];
-					sum += (weight ?? 0) * nextDelta;
+					sum += weight * nextDelta;
 				});
 				const delta = sum * neuron.activationFunction.derivative(neuron.preActivation || 0);
 				deltaMatrix[layerIndex][neuronIndex] = delta;
@@ -121,47 +132,40 @@ export class Network {
 			layer.neurons.forEach((neuron, neuronIndex) => {
 				const delta = deltaMatrix[layerIndex][neuronIndex];
 				neuron.inputs.forEach(input => {
-					const gradient = delta * (input.signal.value ?? 0);
-					input.weight = (input.weight ?? 0) - learningRate * gradient;
+					const gradient = delta * input.signal.value;
+					input.weight = input.weight - learningRate * gradient;
 				});
-				neuron.bias = (neuron.bias ?? 0) - learningRate * delta;
+				neuron.bias = neuron.bias - learningRate * delta;
 			});
 		});
 
 		return this;
 	}
 
-	toJSON() {
+	toJSON(fractionDigits: number = 6): NetworkJSON {
 		return {
 			layers: this.layers.map(layer => ({
 				neurons: layer.neurons.map(neuron => ({
-					bias: neuron.bias,
-					inputs: neuron.inputs.map(input => ({
-						weight: input.weight,
-					})),
+					bias: round(neuron.bias, fractionDigits),
+					inputs: neuron.inputs.map(input => round(input.weight, fractionDigits)),
 				})),
 			})),
-			activationFunction: this.activationFunction === ReLU ? "ReLU" : "Sigmoid",
+			activationFunction: this.activationFunction.functionName,
 		};
 	}
 
-	static fromJSON(json: any) {
-		if (!json.layers || !Array.isArray(json.layers)) {
-			throw new Error("Invalid JSON format: 'layers' field is missing or not an array.");
-		}
-		const activationFunction = json.activationFunction === "Sigmoid" ? Sigmoid : ReLU;
-		const neuronsNumberPerLayer = json.layers.map((layer: any) => layer.neurons.length);
+	static fromJSON(json: NetworkJSON) {
+		const activationFunction = getActivationFunction(json.activationFunction);
+		const neuronsNumberPerLayer = json.layers.map(layer => layer.neurons.length);
 		const network = new Network(neuronsNumberPerLayer, activationFunction);
 
 		// Load weights and biases
-		json.layers.forEach((layer: any, layerIndex: number) => {
-			layer.neurons.forEach((neuron: any, neuronIndex: number) => {
-				const targetNeuron = network.layers[layerIndex].neurons[neuronIndex];
-				targetNeuron.bias = neuron.bias;
-				neuron.inputs.forEach((input: any, inputIndex: number) => {
-					if (targetNeuron.inputs[inputIndex]) {
-						targetNeuron.inputs[inputIndex].weight = input.weight;
-					}
+		network.layers.forEach((layer, layerIndex) => {
+			layer.neurons.forEach((neuron, neuronIndex) => {
+				const storedNeuron = json.layers[layerIndex].neurons[neuronIndex];
+				neuron.bias = storedNeuron.bias;
+				neuron.inputs.forEach((input, inputIndex) => {
+					input.weight = storedNeuron.inputs[inputIndex];
 				});
 			});
 		});
