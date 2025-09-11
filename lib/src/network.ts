@@ -8,7 +8,7 @@ export interface NetworkJSON {
 	layers: {
 		neurons: {
 			bias: number;
-			inputs: number[];
+			weights: number[];
 		}[];
 	}[];
 	activationFunction: string;
@@ -147,7 +147,7 @@ export class Network {
 			layers: this.layers.map(layer => ({
 				neurons: layer.neurons.map(neuron => ({
 					bias: round(neuron.bias, fractionDigits),
-					inputs: neuron.inputs.map(input => round(input.weight, fractionDigits)),
+					weights: neuron.inputs.map(input => round(input.weight, fractionDigits)),
 				})),
 			})),
 			activationFunction: this.activationFunction.functionName,
@@ -165,7 +165,7 @@ export class Network {
 				const storedNeuron = json.layers[layerIndex].neurons[neuronIndex];
 				neuron.bias = storedNeuron.bias;
 				neuron.inputs.forEach((input, inputIndex) => {
-					input.weight = storedNeuron.inputs[inputIndex];
+					input.weight = storedNeuron.weights[inputIndex];
 				});
 			});
 		});
