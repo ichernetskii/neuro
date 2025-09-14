@@ -1,6 +1,6 @@
 import fs from "fs";
 import { type LayerConfig, Network } from "neuro-lib/src/network.ts";
-import { ActivationFunctionCollection } from "neuro-lib/src/functions/activation.ts";
+import { ActivationFunctionCollection, ActivationFunctionName } from "neuro-lib/src/functions/activation.ts";
 import { randomInt } from "neuro-lib/src/functions/random.ts";
 import { ImageProcessor } from "./imageProcessor.ts";
 import { type Options } from "./cli.ts";
@@ -13,19 +13,21 @@ export class NetworkTrainer {
 		const neuronsPerLayer = layersConfig.split(",").map(neuronsNumber => parseInt(neuronsNumber.trim(), 10));
 
 		// Determine activation functions
-		let activationFunctions: string[];
+		let activationFunctionNames: ActivationFunctionName[];
 		if (activationsConfig) {
-			activationFunctions = activationsConfig.split(",").map(act => act.trim());
+			activationFunctionNames = activationsConfig
+				.split(",")
+				.map(fnName => fnName.trim()) as ActivationFunctionName[];
 		} else {
 			// Default: ReLU for hidden layers, Softmax for output
-			activationFunctions = neuronsPerLayer.map((_, index) =>
+			activationFunctionNames = neuronsPerLayer.map((_, index) =>
 				index < neuronsPerLayer.length - 1 ? "ReLU" : "Softmax",
 			);
 		}
 
 		// Create layer configurations
 		const layerConfigs: LayerConfig[] = neuronsPerLayer.map((neurons, index) => {
-			const activationFunction = ActivationFunctionCollection.get(activationFunctions[index] as any);
+			const activationFunction = ActivationFunctionCollection.get(activationFunctionNames[index]);
 
 			return {
 				neurons,
@@ -129,7 +131,7 @@ export class NetworkTrainer {
 		console.log(`   Layers: ${network.layers.length}`);
 		console.log(`   Loss Function: ${network.lossFunction.functionName}`);
 
-		network.layers.forEach((layer: any, index: number) => {
+		network.layers.forEach((layer, index) => {
 			console.log(
 				`   Layer ${index + 1}: ${layer.neurons.length} neurons, ${layer.activationFunction.functionName}`,
 			);

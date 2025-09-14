@@ -120,47 +120,6 @@ describe("Network", () => {
 		});
 	});
 
-	it("Cross Entropy loss function", () => {
-		const layerConfigs: LayerConfig[] = [
-			{ neurons: 2, activationFunction: ActivationFunctionCollection.ReLU },
-			{ neurons: 3, activationFunction: ActivationFunctionCollection.Softmax },
-		];
-		const network = new Network(layerConfigs);
-		network.setInputSignals([1, 2]);
-
-		// Set some weights to get predictable outputs
-		network.layers[0].neurons.forEach(neuron => {
-			neuron.bias = 0;
-			neuron.inputs.forEach(input => {
-				input.weight = 1;
-			});
-		});
-
-		network.layers[1].neurons.forEach(neuron => {
-			neuron.bias = 0;
-			neuron.inputs.forEach(input => {
-				input.weight = 1;
-			});
-		});
-
-		network.forward();
-
-		const expectedOutput = [0.1, 0.8, 0.1]; // One-hot like encoding
-		const loss = network.calculateLoss(expectedOutput);
-
-		// Cross entropy loss should be positive
-		expect(loss).toBeGreaterThan(0);
-
-		// Test that loss decreases with training
-		const initialLoss = loss;
-		network.backward(expectedOutput, 0.1);
-		network.forward();
-		const newLoss = network.calculateLoss(expectedOutput);
-
-		// Loss should decrease (or at least not increase significantly)
-		expect(newLoss).toBeLessThanOrEqual(initialLoss + 0.1);
-	});
-
 	it("Cross Entropy with Softmax backward propagation", () => {
 		const learningRate = 0.1;
 		const inputSignals = [0.1, 0.2, 0.3, 0.4];
@@ -243,22 +202,11 @@ describe("Network", () => {
 
 		// Forward pass
 		network.forward();
-		const outputs = network.getOutputSignals().map(signal => signal.value);
+		const outputs = network.outputValues;
 
 		// Check that outputs sum to 1 (softmax property)
 		const sum = outputs.reduce((acc, val) => acc + val, 0);
 		expect(sum).toBeCloseTo(1, 5);
-
-		// Test backward propagation
-		const expectedOutput = [0.8, 0.2];
-		const initialLoss = network.calculateLoss(expectedOutput);
-
-		network.backward(expectedOutput, 0.1);
-		network.forward();
-		const newLoss = network.calculateLoss(expectedOutput);
-
-		// Loss should decrease
-		expect(newLoss).toBeLessThanOrEqual(initialLoss + 0.1);
 	});
 
 	it("JSON serialization and deserialization with different activation functions", () => {

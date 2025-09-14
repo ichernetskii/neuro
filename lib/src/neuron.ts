@@ -19,19 +19,14 @@ export class Input {
 export class Neuron {
 	inputs: Input[];
 	bias: number;
-	private _preActivation: number | null = null;
-	get preActivation() {
-		return this._preActivation;
-	}
-	private readonly _output: Signal;
-	get output(): Readonly<Signal> {
-		return this._output;
-	}
+	preActivation: number; // calculates in Neuron class
+	readonly output: Signal; // calculates in Layer class
 
 	constructor() {
 		this.inputs = [];
-		this._output = new Signal();
 		this.bias = 0;
+		this.preActivation = 0;
+		this.output = new Signal();
 	}
 
 	addInputs(signals: Signal[]) {
@@ -41,16 +36,11 @@ export class Neuron {
 
 	computePreActivation() {
 		// Compute pre-activation: bias + Σ(input_i * weight_i)
-		this._preActivation =
+		this.preActivation =
 			this.bias +
 			this.inputs.reduce((acc, input) => {
 				return acc + input.weight * input.signal.value;
 			}, 0);
-		return this;
-	}
-
-	setOutputValue(value: number) {
-		this._output.value = value;
 		return this;
 	}
 }

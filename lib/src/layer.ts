@@ -15,12 +15,12 @@ export class Layer {
 		this.neurons.forEach(neuron => neuron.computePreActivation());
 
 		// Then apply activation function to all pre-activations
-		const preActivations = this.neurons.map(neuron => neuron.preActivation || 0);
+		const preActivations = this.neurons.map(neuron => neuron.preActivation);
 		const activations = this.activationFunction(preActivations);
 
 		// Set the output values
 		this.neurons.forEach((neuron, index) => {
-			neuron.setOutputValue(activations[index]);
+			neuron.output.value = activations[index];
 		});
 
 		return this;
@@ -35,5 +35,9 @@ export class Layer {
 			});
 		});
 		return this;
+	}
+
+	get outputValues(): number[] {
+		return this.neurons.map(neuron => neuron.output.value);
 	}
 }

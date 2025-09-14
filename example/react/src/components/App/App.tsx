@@ -49,13 +49,17 @@ export const App = observer<FC>(() => {
 			setProbabilities(undefined);
 			return;
 		}
-		const outputSignals = network.setInputSignals(flatPixels).forward().getOutputSignals();
-		const outputValues = outputSignals.map(signal => signal.value);
+
+		const outputValues = network.setInputSignals(flatPixels).forward().outputValues;
+		const maxIndex = outputValues.indexOf(Math.max(...outputValues));
+		const sum = outputValues.reduce((acc, value) => acc + value, 0);
+		const probabilities =
+			network.lastLayer.activationFunction === ActivationFunctionCollection.Softmax
+				? outputValues // If the model already has Softmax in the output layer, so use the values directly
+				: outputValues.map(value => value / sum); // Otherwise, we need to normalize the values
 		startTransition(() => {
-			const index = outputValues.indexOf(Math.max(...outputValues));
-			setRecognizedValue(index);
-			const softmaxArray = ActivationFunctionCollection.Softmax(outputValues);
-			setProbabilities(Object.fromEntries(softmaxArray.map((value, index) => [index.toString(), value])));
+			setRecognizedValue(maxIndex);
+			setProbabilities(Object.fromEntries(probabilities.map((value, index) => [index.toString(), value])));
 		});
 	}, [flatPixels, isEmpty, network]);
 
@@ -68,18 +72,15 @@ export const App = observer<FC>(() => {
 		const { x, y } = e.currentTarget.getBoundingClientRect();
 		const column = Math.floor((e.clientX - x) / PIXEL_SIZE);
 		const row = Math.floor((e.clientY - y) / PIXEL_SIZE);
-		if (column < IMAGE_WIDTH && row < IMAGE_HEIGHT) {
-			if (e.buttons === 1) {
-				for (let i = -1; i < 2; i++) {
-					for (let j = -1; j < 2; j++) {
-						pixels[row + i][column + j].setSelected(true);
-					}
-				}
-			}
-			if (e.buttons === 2) {
-				for (let i = -1; i < 2; i++) {
-					for (let j = -1; j < 2; j++) {
-						pixels[row + i][column + j].setSelected(false);
+		for (let i = -1; i <= 1; i++) {
+			for (let j = -1; j <= 1; j++) {
+				const newRow = row + i;
+				const newCol = column + j;
+				if (newRow >= 0 && newRow < IMAGE_HEIGHT && newCol >= 0 && newCol < IMAGE_WIDTH) {
+					if (e.buttons === 1) {
+						pixels[newRow][newCol].setSelected(true);
+					} else if (e.buttons === 2) {
+						pixels[newRow][newCol].setSelected(false);
 					}
 				}
 			}

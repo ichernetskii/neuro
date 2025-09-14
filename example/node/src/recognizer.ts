@@ -27,7 +27,7 @@ export class ImageRecognizer {
 	}
 
 	/**
-	 * Recognizes an image and returns the class index with highest probability
+	 * Recognizes an image and returns the class index with the highest probability
 	 */
 	static recognizeImage(
 		network: Network,
@@ -36,15 +36,14 @@ export class ImageRecognizer {
 		const input = ImageProcessor.flattenImage(imageData);
 
 		// Forward pass through network
-		const outputSignals = network.setInputSignals(input).forward().getOutputSignals();
-		const probabilities = outputSignals.map((signal: any) => signal.value);
+		const probabilities = network.setInputSignals(input).forward().outputValues;
 
 		// Find class with maximum probability
-		const maxIndex = probabilities.indexOf(Math.max(...probabilities));
-		const confidence = probabilities[maxIndex];
+		const index = probabilities.indexOf(Math.max(...probabilities));
+		const confidence = probabilities[index];
 
 		return {
-			index: maxIndex,
+			index,
 			confidence,
 			probabilities,
 		};
@@ -164,7 +163,7 @@ export class ImageRecognizer {
 		console.log(`   Layers: ${network.layers.length}`);
 		console.log(`   Loss Function: ${network.lossFunction.functionName}`);
 
-		network.layers.forEach((layer: any, index: number) => {
+		network.layers.forEach((layer, index) => {
 			console.log(
 				`   Layer ${index + 1}: ${layer.neurons.length} neurons, ${layer.activationFunction.functionName}`,
 			);

@@ -5,7 +5,7 @@ import {
 	ActivationFunctionCollection,
 	type ActivationFunctionName,
 } from "./functions/activation.ts";
-import { LossFunctionCollection, type LossFunction, type LossFunctionName } from "./functions/loss.ts";
+import { type LossFunction, LossFunctionCollection, type LossFunctionName } from "./functions/loss.ts";
 import { randomNormalHe, randomUniform, randomUniformXavier } from "./functions/random.ts";
 
 export interface LayerConfig {
@@ -43,9 +43,8 @@ export class Network {
 		if (lossFunction) {
 			this.lossFunction = lossFunction;
 		} else {
-			const lastLayer = this.layers[this.layers.length - 1];
 			this.lossFunction =
-				lastLayer.activationFunction === ActivationFunctionCollection.Softmax
+				this.lastLayer.activationFunction === ActivationFunctionCollection.Softmax
 					? LossFunctionCollection.CrossEntropy
 					: LossFunctionCollection.MSE;
 		}
@@ -107,12 +106,18 @@ export class Network {
 		return this;
 	}
 
-	getOutputSignals(): Readonly<Signal>[] {
-		return this.layers[this.layers.length - 1].neurons.map(neuron => neuron.output);
+	get outputValues(): number[] {
+		return this.lastLayer.outputValues;
+	}
+
+	get lastLayer(): Layer {
+		if (this.layers.length === 0) {
+			throw new Error("Network has no layers");
+		}
+		return this.layers[this.layers.length - 1];
 	}
 
 	forward() {
-		// Now all layers work the same way - no special handling needed!
 		this.layers.forEach(layer => layer.forward());
 		return this;
 	}
@@ -123,7 +128,7 @@ export class Network {
 		// weights update: weight_i -= learningRate * delta * input_i
 		// bias update: bias -= learningRate * delta
 
-		if (expectedOutput.length !== this.layers[this.layers.length - 1].neurons.length) {
+		if (expectedOutput.length !== this.lastLayer.neurons.length) {
 			throw new Error("Expected output length does not match the network's output layer size.");
 		}
 
@@ -131,24 +136,22 @@ export class Network {
 			return Array.from({ length: layer.neurons.length }, () => 0);
 		});
 
-		// Calculate deltas for the output layer
 		const outputLayerIndex = this.layers.length - 1;
-		const outputValues = this.layers[outputLayerIndex].neurons.map(neuron => neuron.output.value);
-		const lossDerivatives = this.lossFunction.derivative(outputValues, expectedOutput);
+		// Calculate deltas for the output layer
+		const lossDerivatives = this.lossFunction.derivative(this.outputValues, expectedOutput);
 
 		// Calculate deltas for output layer
-		const outputLayer = this.layers[outputLayerIndex];
-		const outputPreActivations = outputLayer.neurons.map(neuron => neuron.preActivation || 0);
-		const outputActivationDerivatives = outputLayer.activationFunction.derivative(outputPreActivations);
+		const outputPreActivations = this.lastLayer.neurons.map(neuron => neuron.preActivation);
+		const outputActivationDerivatives = this.lastLayer.activationFunction.derivative(outputPreActivations);
 
-		outputLayer.neurons.forEach((_, neuronIndex) => {
+		this.lastLayer.neurons.forEach((_, neuronIndex) => {
 			const lossFunctionDerivative = lossDerivatives[neuronIndex];
 			const activationDerivative = outputActivationDerivatives[neuronIndex];
 
 			// For Softmax, the derivative is already incorporated in the loss function derivative
 			// For other activation functions, multiply by the activation derivative
 			const delta =
-				outputLayer.activationFunction === ActivationFunctionCollection.Softmax
+				this.lastLayer.activationFunction === ActivationFunctionCollection.Softmax
 					? lossFunctionDerivative
 					: lossFunctionDerivative * activationDerivative;
 
@@ -158,7 +161,7 @@ export class Network {
 		// Calculate deltas for hidden layers
 		for (let layerIndex = outputLayerIndex - 1; layerIndex >= 0; layerIndex--) {
 			const layer = this.layers[layerIndex];
-			const preActivations = layer.neurons.map(neuron => neuron.preActivation || 0);
+			const preActivations = layer.neurons.map(neuron => neuron.preActivation);
 			const activationDerivatives = layer.activationFunction.derivative(preActivations);
 
 			layer.neurons.forEach((_, neuronIndex) => {
@@ -186,15 +189,6 @@ export class Network {
 		});
 
 		return this;
-	}
-
-	calculateLoss(expectedOutput: number[]): number {
-		if (expectedOutput.length !== this.layers[this.layers.length - 1].neurons.length) {
-			throw new Error("Expected output length does not match the network's output layer size.");
-		}
-
-		const predictedOutput = this.layers[this.layers.length - 1].neurons.map(neuron => neuron.output.value);
-		return this.lossFunction(predictedOutput, expectedOutput);
 	}
 
 	toJSON(fractionDigits: number = 6): NetworkJSON {
