@@ -6,12 +6,15 @@ import { type FC, type MouseEventHandler, useEffect, useState, useTransition } f
 import { Network, type NetworkJSON } from "neuro-lib/src/network.ts";
 import { throttle } from "../../utils/throttle.ts";
 import { IMAGE_HEIGHT, IMAGE_WIDTH } from "../../index.tsx";
+import { Statistics, type StatisticsData } from "../Statistics/Statistics.tsx";
+import { ActivationFunctionCollection } from "neuro-lib/src/functions/activation.ts";
 
 const PIXEL_SIZE = 20;
 
 export const App = observer<FC>(() => {
-	const { pixels, flatPixels } = useStore();
+	const { pixels, flatPixels, clear, isEmpty } = useStore();
 	const [recognizedValue, setRecognizedValue] = useState<number>();
+	const [probabilities, setProbabilities] = useState<StatisticsData>();
 	const [isPending, startTransition] = useTransition();
 	const [network, setNetwork] = useState<Network>();
 
@@ -23,15 +26,38 @@ export const App = observer<FC>(() => {
 		};
 
 		importModel();
-	}, []);
+
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				clear();
+			}
+		};
+
+		document.addEventListener("keydown", onKeyDown);
+
+		return () => {
+			document.removeEventListener("keydown", onKeyDown);
+		};
+	}, [clear]);
 
 	useEffect(() => {
-		const outputSignals = network?.setInputSignals(flatPixels).forward().getOutputSignals();
-		const outputValues = outputSignals?.map(signal => signal.value ?? 0);
+		if (!network) {
+			return;
+		}
+		if (isEmpty) {
+			setRecognizedValue(undefined);
+			setProbabilities(undefined);
+			return;
+		}
+		const outputSignals = network.setInputSignals(flatPixels).forward().getOutputSignals();
+		const outputValues = outputSignals.map(signal => signal.value);
 		startTransition(() => {
-			setRecognizedValue(outputValues?.indexOf(Math.max(...outputValues)));
+			const index = outputValues.indexOf(Math.max(...outputValues));
+			setRecognizedValue(index);
+			const softmaxArray = ActivationFunctionCollection.Softmax(outputValues);
+			setProbabilities(Object.fromEntries(softmaxArray.map((value, index) => [index.toString(), value])));
 		});
-	}, [flatPixels, network]);
+	}, [flatPixels, isEmpty, network]);
 
 	if (!network) {
 		return <div>Loading ...</div>;
@@ -44,36 +70,56 @@ export const App = observer<FC>(() => {
 		const row = Math.floor((e.clientY - y) / PIXEL_SIZE);
 		if (column < IMAGE_WIDTH && row < IMAGE_HEIGHT) {
 			if (e.buttons === 1) {
-				pixels[row][column].setSelected(true);
-				pixels[row + 1][column].setSelected(true);
-				pixels[row][column + 1].setSelected(true);
-				pixels[row + 1][column + 1].setSelected(true);
+				for (let i = -1; i < 2; i++) {
+					for (let j = -1; j < 2; j++) {
+						pixels[row + i][column + j].setSelected(true);
+					}
+				}
 			}
 			if (e.buttons === 2) {
-				pixels[row][column].setSelected(false);
-				pixels[row + 1][column].setSelected(false);
-				pixels[row][column + 1].setSelected(false);
-				pixels[row + 1][column + 1].setSelected(false);
+				for (let i = -1; i < 2; i++) {
+					for (let j = -1; j < 2; j++) {
+						pixels[row + i][column + j].setSelected(false);
+					}
+				}
 			}
 		}
 	}, 50);
 
 	return (
-		<div onMouseDown={mouseHandler} onMouseMove={mouseHandler} onContextMenu={e => e.preventDefault()}>
-			{pixels.map((pixelRow, row) => {
-				return (
-					<div key={row} className={styles.row}>
-						{pixelRow.map((pixel, column) => (
-							<Pixel
-								key={`${column}:${row}`}
-								isSelected={pixel.isSelected}
-								// setSelected={pixel.setSelected}
-							/>
-						))}
+		<div className={styles.app}>
+			<div
+				className={styles.pixels}
+				onMouseDown={mouseHandler}
+				onMouseMove={mouseHandler}
+				onContextMenu={e => e.preventDefault()}
+			>
+				{pixels.map((pixelRow, row) => {
+					return (
+						<div key={row} className={styles.row}>
+							{pixelRow.map((pixel, column) => (
+								<Pixel key={`${column}:${row}`} isSelected={pixel.isSelected} />
+							))}
+						</div>
+					);
+				})}
+			</div>
+			<div className={styles.toolbox}>
+				<button className={styles.btn} onClick={clear}>
+					Clear
+				</button>
+				<div className={styles.result}>
+					<div>
+						Recognized value:{" "}
+						<span className={styles.value}>
+							{isPending || recognizedValue === undefined ? "?" : recognizedValue}
+						</span>
 					</div>
-				);
-			})}
-			<span>Recognized value: {isPending ? "?" : recognizedValue}</span>
+					<div className={styles.statistics}>
+						{!isPending && !!probabilities && <Statistics statisticsData={probabilities} />}
+					</div>
+				</div>
+			</div>
 		</div>
 	);
 });

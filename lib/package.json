@@ -8,14 +8,8 @@
   "license": "MIT",
   "author": "Ilia Chernetskii <ichernetskii@gmail.com>",
   "type": "module",
-  "scripts": {
-    "test": "jest"
-  },
   "devDependencies": {
-    "@types/jest": "^30.0.0",
-    "jest": "^30.0.5",
-    "jest-util": "^30.0.5",
-    "ts-jest": "^29.4.1",
+    "@types/jest": "*",
     "typescript": "*"
   }
 }

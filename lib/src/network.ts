@@ -1,8 +1,17 @@
 import { Layer } from "./layer.ts";
 import { Signal } from "./neuron.ts";
-import { type ActivationFunction, getActivationFunction, ReLU, Sigmoid } from "./functions/activation.ts";
+import {
+	type ActivationFunction as ActivationFunctionType,
+	ActivationFunctionCollection,
+	type ActivationFunctionName,
+} from "./functions/activation.ts";
+import { LossFunctionCollection, type LossFunction, type LossFunctionName } from "./functions/loss.ts";
 import { randomNormalHe, randomUniform, randomUniformXavier } from "./functions/random.ts";
-import { round } from "./functions/round.ts";
+
+export interface LayerConfig {
+	neurons: number;
+	activationFunction: ActivationFunctionType;
+}
 
 export interface NetworkJSON {
 	layers: {
@@ -10,18 +19,37 @@ export interface NetworkJSON {
 			bias: number;
 			weights: number[];
 		}[];
+		activationFunction: ActivationFunctionName;
 	}[];
-	activationFunction: string;
+	lossFunction: LossFunctionName;
 }
 
 export class Network {
 	layers: Layer[];
 	inputSignals: Signal[] = [];
-	activationFunction: ActivationFunction;
+	lossFunction: LossFunction;
 
-	constructor(neuronsNumberPerLayer: number[], activationFunction: ActivationFunction = ReLU) {
-		this.layers = neuronsNumberPerLayer.map(count => new Layer(count, activationFunction));
-		this.activationFunction = activationFunction;
+	constructor(layerConfigs: LayerConfig[], lossFunction?: LossFunction) {
+		if (layerConfigs.length === 0) {
+			throw new Error("Network must contain at least one layer");
+		}
+
+		// Create layers based on configuration
+		this.layers = layerConfigs.map(config => {
+			return new Layer(config.neurons, config.activationFunction);
+		});
+
+		// Automatically select loss function based on the last layer
+		if (lossFunction) {
+			this.lossFunction = lossFunction;
+		} else {
+			const lastLayer = this.layers[this.layers.length - 1];
+			this.lossFunction =
+				lastLayer.activationFunction === ActivationFunctionCollection.Softmax
+					? LossFunctionCollection.CrossEntropy
+					: LossFunctionCollection.MSE;
+		}
+
 		this.initInputs().initWeightAndBiases();
 	}
 
@@ -36,8 +64,8 @@ export class Network {
 			layer.neurons.forEach(neuron => {
 				neuron.bias = randomUniform(0, 0.05); // Small random bias
 				neuron.inputs.forEach(input => {
-					switch (this.activationFunction) {
-						case Sigmoid:
+					switch (layer.activationFunction) {
+						case ActivationFunctionCollection.Sigmoid:
 							input.weight = randomUniformXavier(fanIn, fanOut); // Xavier uniform initialization
 							break;
 						default:
@@ -84,13 +112,12 @@ export class Network {
 	}
 
 	forward() {
+		// Now all layers work the same way - no special handling needed!
 		this.layers.forEach(layer => layer.forward());
 		return this;
 	}
 
 	backward(expectedOutput: number[], learningRate: number = 0.05) {
-		// Loss function: Mean Squared Error (MSE): E = 1/2 * (output - expectedOutput)^2
-		// Loss function derivative: dE/d(output) = output - expectedOutput
 		// neuronInput = bias + Σ(input_i * weight_i)
 		// Neuron's error: delta = dE/d(output) * F'(neuronInput)
 		// weights update: weight_i -= learningRate * delta * input_i
@@ -106,23 +133,42 @@ export class Network {
 
 		// Calculate deltas for the output layer
 		const outputLayerIndex = this.layers.length - 1;
-		this.layers[outputLayerIndex].neurons.forEach((neuron, neuronIndex) => {
-			const outputValue = neuron.output.value;
-			const lossFunctionDerivative = outputValue - expectedOutput[neuronIndex];
-			const delta = lossFunctionDerivative * neuron.activationFunction.derivative(neuron.preActivation || 0);
+		const outputValues = this.layers[outputLayerIndex].neurons.map(neuron => neuron.output.value);
+		const lossDerivatives = this.lossFunction.derivative(outputValues, expectedOutput);
+
+		// Calculate deltas for output layer
+		const outputLayer = this.layers[outputLayerIndex];
+		const outputPreActivations = outputLayer.neurons.map(neuron => neuron.preActivation || 0);
+		const outputActivationDerivatives = outputLayer.activationFunction.derivative(outputPreActivations);
+
+		outputLayer.neurons.forEach((_, neuronIndex) => {
+			const lossFunctionDerivative = lossDerivatives[neuronIndex];
+			const activationDerivative = outputActivationDerivatives[neuronIndex];
+
+			// For Softmax, the derivative is already incorporated in the loss function derivative
+			// For other activation functions, multiply by the activation derivative
+			const delta =
+				outputLayer.activationFunction === ActivationFunctionCollection.Softmax
+					? lossFunctionDerivative
+					: lossFunctionDerivative * activationDerivative;
+
 			deltaMatrix[outputLayerIndex][neuronIndex] = delta;
 		});
 
 		// Calculate deltas for hidden layers
 		for (let layerIndex = outputLayerIndex - 1; layerIndex >= 0; layerIndex--) {
-			this.layers[layerIndex].neurons.forEach((neuron, neuronIndex) => {
+			const layer = this.layers[layerIndex];
+			const preActivations = layer.neurons.map(neuron => neuron.preActivation || 0);
+			const activationDerivatives = layer.activationFunction.derivative(preActivations);
+
+			layer.neurons.forEach((_, neuronIndex) => {
 				let sum = 0;
 				this.layers[layerIndex + 1].neurons.forEach((nextNeuron, nextNeuronIndex) => {
 					const weight = nextNeuron.inputs[neuronIndex].weight;
 					const nextDelta = deltaMatrix[layerIndex + 1][nextNeuronIndex];
 					sum += weight * nextDelta;
 				});
-				const delta = sum * neuron.activationFunction.derivative(neuron.preActivation || 0);
+				const delta = sum * activationDerivatives[neuronIndex];
 				deltaMatrix[layerIndex][neuronIndex] = delta;
 			});
 		}
@@ -142,30 +188,47 @@ export class Network {
 		return this;
 	}
 
+	calculateLoss(expectedOutput: number[]): number {
+		if (expectedOutput.length !== this.layers[this.layers.length - 1].neurons.length) {
+			throw new Error("Expected output length does not match the network's output layer size.");
+		}
+
+		const predictedOutput = this.layers[this.layers.length - 1].neurons.map(neuron => neuron.output.value);
+		return this.lossFunction(predictedOutput, expectedOutput);
+	}
+
 	toJSON(fractionDigits: number = 6): NetworkJSON {
 		return {
 			layers: this.layers.map(layer => ({
 				neurons: layer.neurons.map(neuron => ({
-					bias: round(neuron.bias, fractionDigits),
-					weights: neuron.inputs.map(input => round(input.weight, fractionDigits)),
+					bias: Math.round(10 ** fractionDigits * neuron.bias),
+					weights: neuron.inputs.map(input => Math.round(10 ** fractionDigits * input.weight)),
 				})),
+				activationFunction: layer.activationFunction.functionName,
 			})),
-			activationFunction: this.activationFunction.functionName,
+			lossFunction: this.lossFunction.functionName,
 		};
 	}
 
-	static fromJSON(json: NetworkJSON) {
-		const activationFunction = getActivationFunction(json.activationFunction);
-		const neuronsNumberPerLayer = json.layers.map(layer => layer.neurons.length);
-		const network = new Network(neuronsNumberPerLayer, activationFunction);
+	static fromJSON(json: NetworkJSON, fractionDigits: number = 6) {
+		// Create layer configurations from JSON
+		const layerConfigs: LayerConfig[] = json.layers.map(layer => ({
+			neurons: layer.neurons.length,
+			activationFunction: ActivationFunctionCollection.get(layer.activationFunction),
+		}));
+
+		// Get loss function
+		const lossFunction = LossFunctionCollection.get(json.lossFunction);
+
+		const network = new Network(layerConfigs, lossFunction);
 
 		// Load weights and biases
 		network.layers.forEach((layer, layerIndex) => {
 			layer.neurons.forEach((neuron, neuronIndex) => {
 				const storedNeuron = json.layers[layerIndex].neurons[neuronIndex];
-				neuron.bias = storedNeuron.bias;
+				neuron.bias = storedNeuron.bias / 10 ** fractionDigits;
 				neuron.inputs.forEach((input, inputIndex) => {
-					input.weight = storedNeuron.weights[inputIndex];
+					input.weight = storedNeuron.weights[inputIndex] / 10 ** fractionDigits;
 				});
 			});
 		});

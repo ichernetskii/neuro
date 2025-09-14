@@ -3,19 +3,38 @@
 	"useTabs": true,
 	"tabWidth": 4,
 	"arrowParens": "avoid",
-	"overrides": [{
-		"files": ["**/*.json"],
-		"options": {
-			"parser": "json",
-			"useTabs": false ,
-			"tabWidth": 2
+	"overrides": [
+		{
+			"files": ["**/*.json"],
+			"options": {
+				"parser": "json",
+				"useTabs": false,
+				"tabWidth": 2
+			}
+		},
+		{
+			"files": ["**/*.html", "**/*.htm"],
+			"options": {
+				"parser": "html",
+				"useTabs": false,
+				"tabWidth": 2
+			}
+		},
+		{
+			"files": ["**/*.scss"],
+			"options": {
+				"parser": "scss",
+				"useTabs": true,
+				"tabWidth": 4
+			}
+		},
+		{
+			"files": ["**/*.ts", "**/*.tsx"],
+			"options": {
+				"parser": "typescript",
+				"useTabs": true,
+				"tabWidth": 4
+			}
 		}
-	}, {
-		"files": ["**/*.html", "**/*.htm"],
-		"options": {
-			"parser": "html",
-			"useTabs": false,
-			"tabWidth": 2
-		}
-	}]
+	]
 }

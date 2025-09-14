@@ -1,7 +1,15 @@
-# Ignore artifacts:
+# Ignore parent directories
+../*
+
+# Ignore system directories
 .idea
-node_modules
 build
 coverage
 .yarn
 .pnp.*
+/example/dataset
+
+# Ignore generated files
+dist/
+*.min.js
+*.min.css
