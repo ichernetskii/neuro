@@ -176,7 +176,7 @@ describe("Network", () => {
 	it("Network constructor with empty layer configs - error handling", () => {
 		expect(() => {
 			new Network([]);
-		}).toThrow("Сеть должна содержать хотя бы один слой");
+		}).toThrow("Network must contain at least one layer");
 	});
 
 	it("Network with mixed activation functions - forward and backward propagation", () => {

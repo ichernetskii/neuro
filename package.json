@@ -11,8 +11,8 @@
   "private": true,
   "workspaces": [
     "lib",
-    "example/node",
-    "example/react"
+    "mnist-example/node",
+    "mnist-example/react"
   ],
   "scripts": {
     "prettier": "prettier --check ..",

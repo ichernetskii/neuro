@@ -7,7 +7,7 @@ build
 coverage
 .yarn
 .pnp.*
-/example/dataset
+/mnist-example/dataset
 
 # Ignore generated files
 dist/
